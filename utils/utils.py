@@ -112,6 +112,11 @@ def print_results(article, abstract, decoded_output):
 
 
 def make_html_safe(s):
+    try:
+        s = str(s, "utf-8")
+    except:
+        pass
+
     s.replace("<", "&lt;")
     s.replace(">", "&gt;")
     return s
@@ -153,10 +158,14 @@ def calc_running_avg_loss(loss, running_avg_loss, summary_writer, step, decay=0.
     else:
         running_avg_loss = running_avg_loss * decay + (1 - decay) * loss
     running_avg_loss = min(running_avg_loss, 12)  # clip
-    loss_sum = tf.Summary()
+    #loss_sum = tf.Summary()
     tag_name = 'running_avg_loss/decay=%f' % (decay)
-    loss_sum.value.add(tag=tag_name, simple_value=running_avg_loss)
-    summary_writer.add_summary(loss_sum, step)
+    #loss_sum.value.add(tag=tag_name, simple_value=running_avg_loss)
+    #summary_writer.add_summary(loss_sum, step)
+    
+    with summary_writer.as_default():
+        tf.summary.text(tag_name, str(running_avg_loss), step)
+    
     return running_avg_loss
 
 

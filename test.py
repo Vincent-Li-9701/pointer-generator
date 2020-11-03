@@ -55,11 +55,11 @@ class BeamSearch(object):
                 os.mkdir(p)
 
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
+        self.batcher = Batcher(self.vocab, config.decode_data_path, mode='decode',
                                batch_size=config.beam_size, single_pass=True)
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True)
+        self.model = Model(model_file_path, is_eval=True, is_tran=config.tran)
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
@@ -67,10 +67,10 @@ class BeamSearch(object):
 
     def beam_search(self, batch):
         # single example repeated across the batch
-        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t, coverage = \
+        enc_batch, enc_lens, enc_pos, enc_padding_mask, enc_batch_extend_vocab, extra_zeros, c_t, coverage = \
             get_input_from_batch(batch, use_cuda)
 
-        enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_lens)
+        enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_pos)
         s_t = self.model.reduce_state(enc_h)
 
         dec_h, dec_c = s_t     # b x hidden_dim
@@ -185,6 +185,7 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
+            break
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting ROUGE eval...")
