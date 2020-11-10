@@ -39,13 +39,13 @@ trunc_norm_init_std=1e-4
 eps = 1e-12
 use_gpu=True
 lr_coverage=0.15
-max_iterations = 500000
+max_iterations = 250000
 
 # transformer
 d_k = 64
 d_v = 64
 n_head = 6
-tran = True
+tran = True # if tran is true, the encoder is using transformer instead of lstm
 dropout = 0.1
 n_layers = 6
 d_model = 128
@@ -55,7 +55,6 @@ n_warmup_steps = 4000
 root_dir = os.path.expanduser("./")
 log_root = os.path.join(root_dir, "dataset/log/")
 
-#train_data_path = os.path.join(root_dir, "pointer_generator/dataset/finished_files/train.bin")
 train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
 decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
