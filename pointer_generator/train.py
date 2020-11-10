@@ -11,13 +11,13 @@ import torch
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
 
-from models.model import Model
-from utils import config
-from utils.dataset import Vocab
-from utils.dataset import Batcher
-from utils.utils import get_input_from_batch
-from utils.utils import get_output_from_batch
-from utils.utils import calc_running_avg_loss
+from pointer_generator.models.model import Model
+from pointer_generator.utils import config
+from pointer_generator.utils.dataset import Vocab
+from pointer_generator.utils.dataset import Batcher
+from pointer_generator.utils.utils import get_input_from_batch
+from pointer_generator.utils.utils import get_output_from_batch
+from pointer_generator.utils.utils import calc_running_avg_loss
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 

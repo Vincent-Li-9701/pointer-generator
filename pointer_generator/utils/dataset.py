@@ -11,8 +11,8 @@ from random import shuffle
 from threading import Thread
 from tensorflow.core.example import example_pb2
 
-from utils import utils
-from utils import config
+import pointer_generator.utils.utils as utils
+import pointer_generator.utils.config as config
 
 import random
 random.seed(1234)
@@ -130,6 +130,77 @@ class Example(object):
         src = [start_id] + sequence[:]
         tgt = sequence[:]
         if len(src) > max_len:   # truncate
+            src = src[:max_len]
+            tgt = tgt[:max_len]  # no end_token
+        else:  # no truncation
+            tgt.append(stop_id)  # end token
+        assert len(src) == len(tgt)
+        return src, tgt
+
+    def pad_enc_seq(self, max_len, pad_id):
+        while len(self.enc_inp) < max_len:
+            self.enc_inp.append(pad_id)
+        if config.pointer_gen:
+            while len(self.enc_inp_extend_vocab) < max_len:
+                self.enc_inp_extend_vocab.append(pad_id)
+
+    def pad_dec_seq(self, max_len, pad_id):
+        while len(self.dec_inp) < max_len:
+            self.dec_inp.append(pad_id)
+        while len(self.tgt) < max_len:
+            self.tgt.append(pad_id)
+
+
+class ExampleHF(object):
+    def __init__(self, article, abstract_sentences, vocab):
+        # Get ids of special tokens
+        bos_decoding = vocab.word2id(BOS_TOKEN)
+        eos_decoding = vocab.word2id(EOS_TOKEN)
+
+        # Process the article
+        article_words = article.split()
+        if len(article_words) > config.max_enc_steps:
+            article_words = article_words[:config.max_enc_steps]
+        self.enc_len = len(
+            article_words)  # store the length after truncation but before padding
+        self.enc_inp = [vocab.word2id(w) for w in
+                        article_words]  # list of word ids; OOVs are represented by the id for UNK token
+
+        # Process the abstract
+        abstract = ' '.join(abstract_sentences)
+        abstract_words = abstract.split()  # list of strings
+        abs_ids = [vocab.word2id(w) for w in
+                   abstract_words]  # list of word ids; OOVs are represented by the id for UNK token
+
+        # Get the decoder input sequence and target sequence
+        self.dec_inp, self.tgt = self.get_dec_seq(abs_ids, config.max_dec_steps,
+                                                  bos_decoding, eos_decoding)
+        self.dec_len = len(self.dec_inp)
+
+        # If using pointer-generator mode, we need to store some extra info
+        if config.pointer_gen:
+            # Store a version of the enc_input where in-article OOVs are represented by their temporary OOV id;
+            # also store the in-article OOVs words themselves
+            self.enc_inp_extend_vocab, self.article_oovs = utils.article2ids(
+                article_words, vocab)
+
+            # Get a verison of the reference summary where in-article OOVs are represented by their temporary article OOV id
+            abs_ids_extend_vocab = utils.abstract2ids(abstract_words, vocab,
+                                                      self.article_oovs)
+
+            # Overwrite decoder target sequence so it uses the temp article OOV ids
+            _, self.tgt = self.get_dec_seq(abs_ids_extend_vocab, config.max_dec_steps,
+                                           bos_decoding, eos_decoding)
+
+        # Store the original strings
+        self.original_article = article
+        self.original_abstract = abstract
+        self.original_abstract_sents = abstract_sentences
+
+    def get_dec_seq(self, sequence, max_len, start_id, stop_id):
+        src = [start_id] + sequence[:]
+        tgt = sequence[:]
+        if len(src) > max_len:  # truncate
             src = src[:max_len]
             tgt = tgt[:max_len]  # no end_token
         else:  # no truncation
@@ -291,6 +362,7 @@ class Batcher(object):
                 else:
                     raise Exception("single_pass mode is off but the example generator is out of data; error.")
 
+            print(abstract)
             abstract_sentences = [sent.strip() for sent in utils.abstract2sents(
                 abstract)]  # Use the <s> and </s> tags in abstract to get a list of sentences.
             example = Example(article, abstract_sentences, self._vocab)
