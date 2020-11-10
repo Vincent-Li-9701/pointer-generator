@@ -73,7 +73,7 @@ class BaseVocab(object):
                 writer.writerow({"word": self.idx2word[i]})
 
 
-def build_vocab_from_HFDS(dataset_names, max_size, vocab_name=None, split="train"):
+def build_vocab_from_HFDS(dataset_names, max_size, vocab_name, split="train"):
     split = ["train", "test", "validation"] if split == "all" else [split]
     if isinstance(dataset_names, str):
         dataset_names = [dataset_names]
@@ -135,4 +135,5 @@ def combine_vocab_files(input_vocab_files, output_vocab_file, max_size):
 
 
 if __name__ == '__main__':
-    build_vocab_from_HFDS("cnn_dailymail", 50000, vocab_name="cnn_dailymail.txt")
+    # build_vocab_from_HFDS("cnn_dailymail", 100000, vocab_name="cnn_dailymail.txt")
+    build_vocab_from_HFDS("xsum", 100000, vocab_name="xsum.txt")

@@ -7,7 +7,7 @@ class MetaBatcher(object):
     """
     Simple meta loader -- every dataset is a new task
     """
-    def __init__(self, num_samples_per_task, datasets="all", vocab=None, build_vocab=False, split="train", **batcher_args):
+    def __init__(self, batch_size, num_samples_per_task, datasets="all", vocab=None, build_vocab=False, split="train", **batcher_args):
         if datasets == "all":
             datasets = list(name_to_HFDS.keys())
         self.ds_names = datasets
@@ -15,6 +15,7 @@ class MetaBatcher(object):
         assert vocab is not None or build_vocab, "No vocab file provided"
         self._vocab = vocab
 
+        self.batch_size = batch_size
         self.K = num_samples_per_task
         self.batcher = []
         for name in datasets:
