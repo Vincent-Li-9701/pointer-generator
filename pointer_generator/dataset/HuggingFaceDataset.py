@@ -45,9 +45,9 @@ class GigaWordDataset(HuggingFaceDataset):
 
 
 class RedditTIFUDataset(HuggingFaceDataset):
-    def __init__(self, version="long", split="train", summary_name="title"):
+    def __init__(self, version="short", split="train", summary_name="tldr"):
         assert version in ["long", "short"]
-        # tldr (not really relevant) vs title
+        # tldr vs title
         assert summary_name in ["tldr", "title"]
         super(RedditTIFUDataset, self).__init__("reddit_tifu", additional_config=version, doc_name="documents", summary_name=summary_name)
 
@@ -60,6 +60,8 @@ class AESLCDataset(HuggingFaceDataset):
 
 class BillSumDataset(HuggingFaceDataset):
     def __init__(self, split="train", summary_name="title"):
+        if split == "validation":
+            split = "ca_test"
         assert split in ["train", "test", "ca_test"]
         # summary (long) vs title (short)
         assert summary_name in ["summary", "title"]

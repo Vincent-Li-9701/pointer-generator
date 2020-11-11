@@ -108,7 +108,8 @@ def build_vocab_from_HFDS(dataset_names, max_size, vocab_name, split="train"):
           f"The least common word is {word} with frequency {count}")
 
 
-def combine_vocab_files(input_vocab_files, output_vocab_file, max_size):
+def combine_vocab_files(input_vocab_files, output_vocab_file, max_size, criteria="task"):
+    assert criteria in ["task", "frequency"]
     vocab_counter = Counter()
     for vocab_file in input_vocab_files:
         print(vocab_file)
@@ -123,7 +124,10 @@ def combine_vocab_files(input_vocab_files, output_vocab_file, max_size):
                 if w in [SENTENCE_STA, SENTENCE_END, UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]:
                     raise Exception(
                         '<s>, </s>, [UNK], [PAD], [BOS] and [EOS] shouldn\'t be in the vocab file, but %s is' % w)
-                vocab_counter[w] += freq
+                if criteria == "task":
+                    vocab_counter[w] += 1
+                else:
+                    vocab_counter[w] += int(freq)
 
     print("Writing vocab file...")
     file_path = os.path.join(vocab_cache_dir, output_vocab_file)
@@ -136,4 +140,6 @@ def combine_vocab_files(input_vocab_files, output_vocab_file, max_size):
 
 if __name__ == '__main__':
     # build_vocab_from_HFDS("cnn_dailymail", 100000, vocab_name="cnn_dailymail.txt")
-    build_vocab_from_HFDS("xsum", 100000, vocab_name="xsum.txt")
+    # combine_vocab_files(["reddit_tifu_short.txt", "reddit_tifu.txt"], "reddit_tifu_all.txt", max_size=100000, criteria="frequency")
+    combine_vocab_files(["aeslc.txt", "billsum.txt", "cnn_dailymail.txt", "gigaword.txt", "multi_news.txt", "reddit_tifu_all.txt", "xsum.txt"],
+                        "vocab_7ds_5w.txt", max_size=50000, criteria="task")

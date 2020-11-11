@@ -20,7 +20,6 @@ from pointer_generator.utils.utils import calc_running_avg_loss
 from pointer_generator.dataset.HuggingFaceDataset import CNNDailyMailDataset, XSumDataset
 from pointer_generator.dataset.HuggingFaceBatcher import HuggingFaceBatcher
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
-from pointer_generator.dataset.vocab import BaseVocab
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
@@ -30,13 +29,15 @@ class Train(object):
         # self.vocab = Vocab(config.vocab_path, config.vocab_size)
         # self.batcher = Batcher(self.vocab, config.train_data_path,
         #                        config.batch_size, single_pass=False, mode='train')
-
-        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, "cnn_dailymail.txt"), max_size=50000)
         '''Train on one dataset'''
         # dataset = CNNDailyMailDataset(split="train")
         # self.batcher = HuggingFaceBatcher(dataset=dataset, vocab=self.vocab, batch_size=2)
         '''Meta Training'''
-        self.batcher = MetaBatcher(num_samples_per_task=8, vocab=self.vocab)
+        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+        self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_K,
+                                   datasets=config.meta_train_datasets,
+                                   vocab=self.vocab,
+                                   split="train")
 
         time.sleep(10)
 
