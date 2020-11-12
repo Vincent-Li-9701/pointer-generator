@@ -17,8 +17,7 @@ EOS_TOKEN = '[EOS]'
 
 beam_size=4
 emb_dim= 128
-#batch_size= 16
-batch_size= 8
+batch_size= 4 #16
 hidden_dim= 256
 max_enc_steps=400
 max_dec_steps=100
@@ -37,7 +36,7 @@ rand_unif_init_mag=0.02
 trunc_norm_init_std=1e-4
 
 eps = 1e-12
-use_gpu=False
+use_gpu=True
 lr_coverage=0.15
 max_iterations = 500000
 
@@ -53,18 +52,17 @@ d_inner = 512
 n_warmup_steps = 4000
 
 root_dir = os.path.expanduser("./")
-# log_root = os.path.join(root_dir, "dataset/log/")
-log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
+log_root = os.path.join(root_dir, "dataset/log/")
+# log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
 
-#train_data_path = os.path.join(root_dir, "pointer_generator/dataset/finished_files/train.bin")
-# train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
-# eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
-# decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
-# vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
-train_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/train_*")
-eval_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/val_*")
-decode_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/test_*")
-vocab_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/vocab")
+train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
+eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
+decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
+vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
+# train_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/train_*")
+# eval_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/val_*")
+# decode_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/test_*")
+# vocab_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/vocab")
 
 
 ########################## New configs to fill ##############################

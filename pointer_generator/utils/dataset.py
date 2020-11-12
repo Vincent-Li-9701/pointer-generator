@@ -362,7 +362,7 @@ class Batcher(object):
                 else:
                     raise Exception("single_pass mode is off but the example generator is out of data; error.")
 
-            print(abstract)
+            #print(abstract)
             abstract_sentences = [sent.strip() for sent in utils.abstract2sents(
                 abstract)]  # Use the <s> and </s> tags in abstract to get a list of sentences.
             example = Example(article, abstract_sentences, self._vocab)

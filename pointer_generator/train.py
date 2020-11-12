@@ -18,6 +18,7 @@ from pointer_generator.utils.dataset import Batcher
 from pointer_generator.utils.utils import get_input_from_batch
 from pointer_generator.utils.utils import get_output_from_batch
 from pointer_generator.utils.utils import calc_running_avg_loss
+import higher
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
@@ -114,10 +115,6 @@ class Train(object):
 
             for di in range(min(max_dec_len, config.max_dec_steps)):
                 y_t = dec_batch[:-1, di]  # Teacher forcing
-
-                # TODO: extra_zeros and enc_batch_extend_vocab can be None if pg is enabled. need to handle that
-                # coverage is zero when converage is enabled
-
                 
                 final_dist, s_t, c_t, attn_dist, p_gen, next_coverage = \
                     fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[:-1], c_t,
@@ -176,13 +173,11 @@ class Train(object):
             batch_avg_loss = sum_losses / dec_lens[-1:]
             loss = torch.mean(batch_avg_loss)
 
-            # clip_grad_norm_(fnet.encoder.parameters(), config.max_grad_norm)
-            # clip_grad_norm_(fnet.decoder.parameters(), config.max_grad_norm)
-            # clip_grad_norm_(fnet.reduce_state.parameters(), config.max_grad_norm)
-
             loss.backward()
-            
-            loss.detach()
+
+            clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
+            clip_grad_norm_(self.model.decoder.parameters(), config.max_grad_norm)
+            clip_grad_norm_(self.model.reduce_state.parameters(), config.max_grad_norm)
 
         self.meta_optimizer.step()
 
@@ -255,8 +250,8 @@ class Train(object):
 
         while iter < n_iters:
             batch = self.batcher.next_batch()
-            #loss, cove_loss = self.train_one_batch(batch)
-            loss, cove_loss = self.meta_train_one_batch(batch)
+            #loss, cove_loss = self.meta_train_one_batch(batch)
+            loss, cove_loss = 0, 0
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
             iter += 1

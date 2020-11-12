@@ -1,4 +1,7 @@
-/dataset
+/pointer_generator/dataset/finished_files/*
+/pointer_generator/dataset/log/
 *.pyc
 *.out
 *.png
+*.bin
+/dataset
