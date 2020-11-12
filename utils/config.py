@@ -16,10 +16,10 @@ BOS_TOKEN = '[BOS]'
 EOS_TOKEN = '[EOS]'
 
 beam_size=4
-emb_dim= 128
+emb_dim= 16 #128
 #batch_size= 16
-batch_size= 8
-hidden_dim= 256
+batch_size= 4#8
+hidden_dim= 16 #256
 max_enc_steps=400
 max_dec_steps=100
 max_tes_steps=100
@@ -42,14 +42,14 @@ lr_coverage=0.15
 max_iterations = 250000
 
 # transformer
-d_k = 64
-d_v = 64
-n_head = 6
+d_k = 16#64
+d_v = 16#64
+n_head = 2#6
 tran = True # if tran is true, the encoder is using transformer instead of lstm
 dropout = 0.1
-n_layers = 6
-d_model = 128
-d_inner = 512
+n_layers = 2#6
+d_model = 16 #128
+d_inner = 32 #512 
 n_warmup_steps = 4000
 
 root_dir = os.path.expanduser("./")
