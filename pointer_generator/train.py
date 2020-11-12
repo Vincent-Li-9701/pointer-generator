@@ -22,7 +22,6 @@ import higher
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
-
 class Train(object):
     def __init__(self):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
@@ -56,12 +55,10 @@ class Train(object):
         self.model = Model(model_path, is_tran= config.tran)
         initial_lr = config.lr_coverage if config.is_coverage else config.lr
 
-        params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
-                 list(self.model.reduce_state.parameters())
-        total_params = sum([param[0].nelement() for param in params])
+        total_params = sum([param[0].nelement() for param in self.model.parameters()])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
-        self.meta_optimizer = optim.Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
-        self.inner_optimizer = optim.Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        self.meta_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
         start_iter, start_loss = 0, 0
 
@@ -99,8 +96,6 @@ class Train(object):
         mtr_enc_batch_extend_vocab, mte_enc_batch_extend_vocab = split_data(enc_batch_extend_vocab)
         mtr_coverage, mte_coverage = split_data(coverage)
         mtr_c_t, mte_c_t = split_data(c_t) 
-        
-
         
         with higher.innerloop_ctx(self.model, self.inner_optimizer, copy_initial_weights=False) as (fnet, diffopt):
 
@@ -171,9 +166,9 @@ class Train(object):
 
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens[-1:]
-            loss = torch.mean(batch_avg_loss)
+            meta_loss = torch.mean(batch_avg_loss)
 
-            loss.backward()
+            meta_loss.backward()
 
             clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
             clip_grad_norm_(self.model.decoder.parameters(), config.max_grad_norm)
@@ -250,8 +245,7 @@ class Train(object):
 
         while iter < n_iters:
             batch = self.batcher.next_batch()
-            #loss, cove_loss = self.meta_train_one_batch(batch)
-            loss, cove_loss = 0, 0
+            loss, cove_loss = self.meta_train_one_batch(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
             iter += 1
