@@ -9,7 +9,7 @@ import torch
 import tensorflow as tf
 from torch.autograd import Variable
 
-from utils import config
+from pointer_generator.utils import config
 
 
 def article2ids(article_words, vocab):
@@ -63,15 +63,21 @@ def outputids2words(id_list, vocab, article_oovs):
     return words
 
 
-def abstract2sents(abstract):
+def abstract2sents(abstract, encode=True):
     cur_p = 0
     sents = []
     while True:
         try:
-            sta_p = abstract.index(config.SENTENCE_STA.encode(), cur_p)
-            end_p = abstract.index(config.SENTENCE_END.encode(), sta_p + 1)
-            cur_p = end_p + len(config.SENTENCE_END.encode())
-            sents.append(abstract[sta_p + len(config.SENTENCE_STA.encode()):end_p])
+            if encode:
+                sta_p = abstract.index(config.SENTENCE_STA.encode(), cur_p)
+                end_p = abstract.index(config.SENTENCE_END.encode(), sta_p + 1)
+                cur_p = end_p + len(config.SENTENCE_END.encode())
+                sents.append(abstract[sta_p + len(config.SENTENCE_STA.encode()):end_p])
+            else:
+                sta_p = abstract.index(config.SENTENCE_STA, cur_p)
+                end_p = abstract.index(config.SENTENCE_END, sta_p + 1)
+                cur_p = end_p + len(config.SENTENCE_END)
+                sents.append(abstract[sta_p + len(config.SENTENCE_STA):end_p])
         except ValueError as e:  # no more sentences
             return sents
 

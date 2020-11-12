@@ -1,0 +1,15 @@
+HuggingFace Datasets
+supports 9 of the 12 datasets
+supported: CNN/DailyNews, Newsroom, Multinews, Gigawords, XSum, Wikihow, Reddit TIFU, AESLC, BillSum
+not supported: bigpatent, arxiv, PubMed
+
+transformers bug: pip install sentencepiece==0.1.91
+
+Stanford NLP ToolKit:
+https://stanfordnlp.github.io/CoreNLP/#quickstart
+export CLASSPATH=$CLASSPATH:~/home/code/resources/stanford-corenlp-4.1.0/*
+
+sudo apt install libcudnn7
+
+XSum:
+http://bollin.inf.ed.ac.uk/public/direct/XSUM-EMNLP18-Summary-Data-Original.tar.gz
