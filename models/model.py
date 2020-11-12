@@ -17,8 +17,9 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(123)
 
 
-class Model(object):
+class Model(torch.nn.Module):
     def __init__(self, model_path=None, is_eval=False, is_tran = False):
+        super(Model, self).__init__()
         encoder = Encoder()
         decoder = Decoder()
         reduce_state = ReduceState()
@@ -48,3 +49,4 @@ class Model(object):
             self.encoder.load_state_dict(state['encoder_state_dict'])
             self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
             self.reduce_state.load_state_dict(state['reduce_state_dict'])
+
