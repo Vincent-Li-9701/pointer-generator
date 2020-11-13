@@ -6,3 +6,4 @@
 *.png
 *.bin
 /dataset
+*.idea/*

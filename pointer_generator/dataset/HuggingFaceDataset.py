@@ -80,8 +80,8 @@ name_to_HFDS = {
     "xsum": XSumDataset,
     "multi_news": MultiNewsDataset,
     "gigaword": GigaWordDataset,
-    "reddit_tifu": RedditTIFUDataset,
-    "aeslc": AESLCDataset,
+    # "reddit_tifu": RedditTIFUDataset,
+    # "aeslc": AESLCDataset,
     "billsum": BillSumDataset
 }
 

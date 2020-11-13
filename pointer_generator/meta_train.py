@@ -21,6 +21,7 @@ from pointer_generator.dataset.HuggingFaceDataset import CNNDailyMailDataset, XS
 from pointer_generator.dataset.HuggingFaceBatcher import HuggingFaceBatcher
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
 
+tf.config.set_visible_devices([], 'GPU')
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
 
@@ -129,11 +130,7 @@ class Train(object):
         loss = torch.mean(batch_avg_loss)
 
         loss.backward()
-
-        clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
-        clip_grad_norm_(self.model.decoder.parameters(), config.max_grad_norm)
-        clip_grad_norm_(self.model.reduce_state.parameters(), config.max_grad_norm)
-
+        clip_grad_norm_(self.model.parameters(), config.max_grad_norm)
         self.optimizer.step()
 
         if config.is_coverage:

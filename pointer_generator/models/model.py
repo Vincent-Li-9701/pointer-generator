@@ -46,7 +46,11 @@ class Model(torch.nn.Module):
 
         if model_path is not None:
             state = torch.load(model_path, map_location=lambda storage, location: storage)
-            self.encoder.load_state_dict(state['encoder_state_dict'])
-            self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
-            self.reduce_state.load_state_dict(state['reduce_state_dict'])
+            if 'model_dict' in state.keys():
+                self.load_state_dict(state['model_dict'])
+            else:
+                print("here")
+                self.encoder.load_state_dict(state['encoder_state_dict'])
+                self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
+                self.reduce_state.load_state_dict(state['reduce_state_dict'])
 

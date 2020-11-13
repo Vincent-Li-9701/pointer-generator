@@ -141,5 +141,9 @@ def combine_vocab_files(input_vocab_files, output_vocab_file, max_size, criteria
 if __name__ == '__main__':
     # build_vocab_from_HFDS("cnn_dailymail", 100000, vocab_name="cnn_dailymail.txt")
     # combine_vocab_files(["reddit_tifu_short.txt", "reddit_tifu.txt"], "reddit_tifu_all.txt", max_size=100000, criteria="frequency")
-    combine_vocab_files(["aeslc.txt", "billsum.txt", "cnn_dailymail.txt", "gigaword.txt", "multi_news.txt", "reddit_tifu_all.txt", "xsum.txt"],
-                        "vocab_7ds_5w.txt", max_size=50000, criteria="task")
+    # combine_vocab_files(["aeslc.txt", "billsum.txt", "cnn_dailymail.txt", "gigaword.txt", "multi_news.txt", "reddit_tifu_all.txt", "xsum.txt"],
+    #                     "vocab_7ds_5w.txt", max_size=50000, criteria="task")
+    combine_vocab_files(
+        ["billsum.txt", "cnn_dailymail.txt", "gigaword.txt",
+         "multi_news.txt", "xsum.txt"],
+        "vocab_5ds_5w.txt", max_size=50000, criteria="task")
