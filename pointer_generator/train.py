@@ -6,7 +6,6 @@ import os
 import time
 import argparse
 import tensorflow as tf
-import higher
 
 import torch
 import torch.optim as optim
@@ -239,8 +238,6 @@ class Train(object):
         interval = 100
 
         self.save_model(running_avg_loss, iter)
-
-
         while iter < n_iters:
             batch = self.batcher.next_batch()
             if args.mode == "train":

@@ -157,6 +157,10 @@ class HuggingFaceBatcher():
         while True:
             idx = next(index_generator)
             article, summary = self.dataset[idx]
+            print(article)
+            print("----")
+            print(summary)
+            print("=====")
             article_text = " ".join(self.tokenizer.tokenize(article))
             abstract_text = ' '.join(["%s %s %s" % (SENTENCE_STA, sent, SENTENCE_END) for sent in
                       summary.split("\n")])

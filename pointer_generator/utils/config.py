@@ -69,8 +69,8 @@ vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
 
 
 ########################## New configs to fill ##############################
-dataset_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/datasets"
-vocab_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/vocab"
+dataset_cache_dir = "/media/garage/data/pg/dataset"
+vocab_cache_dir = "/media/garage/data/pg/dataset/vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
 meta_train_K = 8  # number of examples per task (dataset)
