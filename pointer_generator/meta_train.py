@@ -129,11 +129,7 @@ class Train(object):
         loss = torch.mean(batch_avg_loss)
 
         loss.backward()
-
-        clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
-        clip_grad_norm_(self.model.decoder.parameters(), config.max_grad_norm)
-        clip_grad_norm_(self.model.reduce_state.parameters(), config.max_grad_norm)
-
+        clip_grad_norm_(self.model.parameters(), config.max_grad_norm)
         self.optimizer.step()
 
         if config.is_coverage:

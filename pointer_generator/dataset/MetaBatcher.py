@@ -18,7 +18,9 @@ class MetaBatcher(object):
         self.K = num_samples_per_task
         self.batcher = []
         assert split in ["train", "test", "validation"]
-        for name in datasets:
+        for name in datasets[6:7]:
+            print(name)
+            input()
             self.batcher.append(HuggingFaceBatcher(name_to_HFDS[name](split=split), self._vocab, self.K, **batcher_args))
 
     def next_batch(self):
