@@ -17,7 +17,6 @@ EOS_TOKEN = '[EOS]'
 
 beam_size=4
 emb_dim= 128
-#batch_size= 16
 batch_size= 4
 hidden_dim= 256
 max_enc_steps=400
@@ -57,10 +56,12 @@ log_root = os.path.join(root_dir, "dataset/log/")
 #log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
 
 #train_data_path = os.path.join(root_dir, "pointer_generator/dataset/finished_files/train.bin")
+
 train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
 decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
 vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
+
 #train_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/train_*")
 #eval_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/val_*")
 #decode_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/test_*")
