@@ -1,5 +1,6 @@
 /pointer_generator/dataset/finished_files/*
 /pointer_generator/dataset/log/
+/pointer_generator.egg-info/
 *.pyc
 *.out
 *.png
