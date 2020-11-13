@@ -17,6 +17,7 @@ from utils.utils import get_input_from_batch
 from utils.utils import get_output_from_batch
 from utils.utils import calc_running_avg_loss
 
+
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
 class Evaluate(object):

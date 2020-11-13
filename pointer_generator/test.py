@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import torch
+import argparse
 from torch.autograd import Variable
 
 from models.model import Model
@@ -15,9 +16,9 @@ from utils.dataset import Vocab
 from utils import dataset, config
 from utils.utils import get_input_from_batch
 from utils.utils import write_for_rouge, rouge_eval, rouge_log
+from pointer_generator.dataset.MetaBatcher import MetaBatcher
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
-
 
 class Beam(object):
     def __init__(self, tokens, log_probs, state, context, coverage):
@@ -44,7 +45,7 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, dataset):
         
         model_name = os.path.basename(model_file_path)
         self._test_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
@@ -54,9 +55,17 @@ class BeamSearch(object):
             if not os.path.exists(p):
                 os.mkdir(p)
 
-        self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.batcher = Batcher(self.vocab, config.decode_data_path, mode='decode',
-                               batch_size=config.beam_size, single_pass=True)
+        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+
+        # TODO
+        #self.batcher = Batcher(self.vocab, config.decode_data_path, mode='decode',
+        #                       batch_size=config.beam_size, single_pass=True)
+        self.batcher = MetaBatcher(num_samples_per_task=config.meta_test_K,
+                                   datasets=[dataset],
+                                   vocab=self.vocab,
+                                   split="test",
+                                   mode="decode")
+
         time.sleep(15)
 
         self.model = Model(model_file_path, is_eval=True, is_tran=config.tran)
@@ -154,12 +163,11 @@ class BeamSearch(object):
 
         return beams_sorted[0]
     
-    def run(self):
+    def run(self, num_to_eval, print_result):
         
         counter = 0
         start = time.time()
         batch = self.batcher.next_batch()
-        i = 0
         while batch is not None:
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
@@ -168,7 +176,6 @@ class BeamSearch(object):
             output_ids = [int(t) for t in best_summary.tokens[1:]]
             decoded_words = utils.outputids2words(output_ids, self.vocab,
                                                     (batch.art_oovs[0] if config.pointer_gen else None))
-            print(decoded_words)
 
             # Remove the [STOP] token from decoded_words, if necessary
             try:
@@ -179,6 +186,11 @@ class BeamSearch(object):
 
             original_abstract_sents = batch.original_abstracts_sents[0]
 
+            if print_result:
+                print("pred:", " ".join(decoded_words))
+                print("gt:", " ".join(original_abstract_sents))
+                print("=====")
+
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
             counter += 1
@@ -187,8 +199,7 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            i = i +1
-            if i > 200:
+            if num_to_eval > 0 and counter > num_to_eval:
                 break
 
         print("Decoder has finished reading dataset for single_pass.")
@@ -198,6 +209,28 @@ class BeamSearch(object):
 
 
 if __name__ == '__main__':
-    model_filename = sys.argv[1]
-    test_processor = BeamSearch(model_filename)
-    test_processor.run()
+    parser = argparse.ArgumentParser(description="Test script")
+    parser.add_argument("-m",
+                        dest="model_path",
+                        required=True,
+                        default=None,
+                        help="Model file for retraining (default: None).")
+    parser.add_argument("-n",
+                        dest="num_to_eval",
+                        required=False,
+                        default=0,
+                        help="Evaluate the first n examples")
+    parser.add_argument("-p",
+                        dest="print",
+                        required=False,
+                        default=False,
+                        help="whether to print")
+    parser.add_argument("-d",
+                        dest="dataset",
+                        required=False,
+                        default=config.meta_test_datasets,
+                        help="test dataset (folder) name")
+    args = parser.parse_args()
+
+    test_processor = BeamSearch(args.model_path, args.dataset)
+    test_processor.run(int(args.num_to_eval), bool(args.print))
