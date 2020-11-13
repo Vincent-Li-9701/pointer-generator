@@ -159,6 +159,7 @@ class BeamSearch(object):
         counter = 0
         start = time.time()
         batch = self.batcher.next_batch()
+        i = 0
         while batch is not None:
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
@@ -167,6 +168,7 @@ class BeamSearch(object):
             output_ids = [int(t) for t in best_summary.tokens[1:]]
             decoded_words = utils.outputids2words(output_ids, self.vocab,
                                                     (batch.art_oovs[0] if config.pointer_gen else None))
+            print(decoded_words)
 
             # Remove the [STOP] token from decoded_words, if necessary
             try:
@@ -185,7 +187,9 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            break
+            i = i +1
+            if i > 200:
+                break
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting ROUGE eval...")
