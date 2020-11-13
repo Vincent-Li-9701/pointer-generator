@@ -21,6 +21,7 @@ from pointer_generator.dataset.HuggingFaceDataset import CNNDailyMailDataset, XS
 from pointer_generator.dataset.HuggingFaceBatcher import HuggingFaceBatcher
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
 
+tf.config.set_visible_devices([], 'GPU')
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
 

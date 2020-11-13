@@ -53,7 +53,7 @@ n_warmup_steps = 4000
 
 root_dir = "/media/garage/data/pg" #os.path.expanduser("./")
 log_root = os.path.join(root_dir, "dataset/log/")
-#log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
+# log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
 
 #train_data_path = os.path.join(root_dir, "pointer_generator/dataset/finished_files/train.bin")
 
@@ -71,6 +71,8 @@ vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
 ########################## New configs to fill ##############################
 dataset_cache_dir = "/media/garage/data/pg/dataset"
 vocab_cache_dir = "/media/garage/data/pg/dataset/vocab"
+# dataset_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/datasets"
+# vocab_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
 meta_train_K = 8  # number of examples per task (dataset)
@@ -78,6 +80,6 @@ meta_test_datasets = "all"
 meta_test_K = beam_size
 meta_val_datasets = "all"
 meta_val_K = 8
-meta_vocab_file = "vocab_7ds_5w.txt"  # assume that this is in @vocab_cache_dir
+meta_vocab_file = "vocab_5ds_5w.txt"  # assume that this is in @vocab_cache_dir
 meta_vocab_size = 50000
 num_inner_loops = 2
