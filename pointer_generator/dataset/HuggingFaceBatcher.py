@@ -118,6 +118,7 @@ class HuggingFaceBatcher():
                     self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
 
     def watch_threads(self):
+        pass
         while True:
             tf.compat.v1.logging.info(
                 'Bucket queue size: %i, Input queue size: %i',
@@ -158,9 +159,12 @@ class HuggingFaceBatcher():
             idx = next(index_generator)
             article, summary = self.dataset[idx]
             article_text = " ".join(self.tokenizer.tokenize(article))
-            abstract_text = ' '.join(["%s %s %s" % (SENTENCE_STA, sent, SENTENCE_END) for sent in
-                      summary.split("\n")])
-            if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
+            abstract_text = self.tokenizer.tokenize(summary)
+            abstract_text = [SENTENCE_STA] + abstract_text + [SENTENCE_END]
+            abstract_text = " ".join(abstract_text)
+            #abstract_text = ' '.join(["%s %s %s" % (SENTENCE_STA, sent, SENTENCE_END) for sent in
+            #          summary.split("\n")])
+            if len(article_text) == 0 or len(abstract_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
                 # tf.logging.warning('Found an example with empty article text. Skipping it.')
                 continue
             else:

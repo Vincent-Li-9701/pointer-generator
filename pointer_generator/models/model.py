@@ -51,6 +51,6 @@ class Model(torch.nn.Module):
             else:
                 print("here")
                 self.encoder.load_state_dict(state['encoder_state_dict'])
-                self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
+                self.decoder.load_state_dict(state['decoder_state_dict'])
                 self.reduce_state.load_state_dict(state['reduce_state_dict'])
 

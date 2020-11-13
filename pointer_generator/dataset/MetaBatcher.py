@@ -24,3 +24,4 @@ class MetaBatcher(object):
     def next_batch(self):
         random_task = random.randint(0, len(self.ds_names)-1)
         return self.batcher[random_task].next_batch()
+

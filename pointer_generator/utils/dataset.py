@@ -104,7 +104,11 @@ class Example(object):
         abstract_words = abstract.split()  # list of strings
         abs_ids = [vocab.word2id(w) for w in
                    abstract_words]         # list of word ids; OOVs are represented by the id for UNK token
-
+        """
+        print(abstract)
+        print(abstract_words)
+        print(abs_ids)
+        """
         # Get the decoder input sequence and target sequence
         self.dec_inp, self.tgt = self.get_dec_seq(abs_ids, config.max_dec_steps, bos_decoding, eos_decoding)
         self.dec_len = len(self.dec_inp)
@@ -168,9 +172,16 @@ class ExampleHF(object):
 
         # Process the abstract
         abstract = ' '.join(abstract_sentences)
+
         abstract_words = abstract.split()  # list of strings
+
         abs_ids = [vocab.word2id(w) for w in
                    abstract_words]  # list of word ids; OOVs are represented by the id for UNK token
+        """
+        print(abstract)
+        print(abstract_words)
+        print(abs_ids)
+        """
 
         # Get the decoder input sequence and target sequence
         self.dec_inp, self.tgt = self.get_dec_seq(abs_ids, config.max_dec_steps,
