@@ -89,7 +89,7 @@ class Vocab(object):
 
 class WordPieceVocab(object):
     def __init__(self, file):
-        self.word2idx = WordPiece.read_file(os.path.join(config.vocab_cache_dir, file))
+        self.word2idx = WordPiece.read_file(file)
         for w in [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]:
             assert w in self.word2idx, "special tokens should be in the vocab"
         self.idx2word = {}
