@@ -19,6 +19,8 @@ from pointer_generator.utils import dataset, config
 from pointer_generator.utils.utils import get_input_from_batch
 from pointer_generator.utils.utils import write_for_rouge, rouge_eval, rouge_log
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
+from pointer_generator.utils.dataset import Vocab, WordPieceVocab
+from tokenizers import Tokenizer
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
@@ -58,16 +60,18 @@ class BeamSearch(object):
             if not os.path.exists(p):
                 os.mkdir(p)
 
-        # self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        # self.batcher = Batcher(self.vocab, config.decode_data_path, mode='decode',
-        #                        batch_size=config.beam_size, single_pass=True)
-        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file),
-                           max_size=config.meta_vocab_size)
+        if config.use_wordpiece_vocab:
+            self.vocab = WordPieceVocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file))
+        else:
+            self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+        tokenizer = Tokenizer.from_file(os.path.join(config.vocab_cache_dir, config.meta_tokenizer_file))
         self.batcher = MetaBatcher(num_samples_per_task=config.meta_test_K,
                                    datasets=config.meta_test_datasets,
                                    vocab=self.vocab,
+                                   tokenizer=tokenizer,
                                    split="test",
-                                   mode='decode')
+                                   mode="decode")
+
         time.sleep(15)
 
         self.model = Model(model_file_path, is_eval=True, is_tran=config.tran)
