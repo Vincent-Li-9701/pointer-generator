@@ -13,13 +13,14 @@ from torch.nn.utils import clip_grad_norm_
 
 from pointer_generator.models.model import Model
 from pointer_generator.utils import config
-from pointer_generator.utils.dataset import Vocab
+from pointer_generator.utils.dataset import Vocab, WordPieceVocab
 from pointer_generator.utils.utils import get_input_from_batch
 from pointer_generator.utils.utils import get_output_from_batch
 from pointer_generator.utils.utils import calc_running_avg_loss
 from pointer_generator.dataset.HuggingFaceDataset import CNNDailyMailDataset, XSumDataset
 from pointer_generator.dataset.HuggingFaceBatcher import HuggingFaceBatcher
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
+from tokenizers import Tokenizer
 
 tf.config.set_visible_devices([], 'GPU')
 use_cuda = config.use_gpu and torch.cuda.is_available()
@@ -34,10 +35,15 @@ class Train(object):
         # dataset = CNNDailyMailDataset(split="train")
         # self.batcher = HuggingFaceBatcher(dataset=dataset, vocab=self.vocab, batch_size=2)
         '''Meta Training'''
-        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+        if config.use_wordpiece_vocab:
+            self.vocab = WordPieceVocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file))
+        else:
+            self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+        tokenizer = Tokenizer.from_file(os.path.join(config.vocab_cache_dir, config.meta_tokenizer_file))
         self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_K,
                                    datasets=config.meta_train_datasets,
                                    vocab=self.vocab,
+                                   tokenizer=tokenizer,
                                    split="train")
 
         time.sleep(10)

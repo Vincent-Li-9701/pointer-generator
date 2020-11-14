@@ -13,10 +13,10 @@ import time
 class HuggingFaceBatcher():
     BATCH_QUEUE_MAX = 50  # max number of batches the batch_queue can hold
 
-    def __init__(self, dataset, vocab, batch_size, single_pass=False, mode='train', shuffle=True):
+    def __init__(self, dataset, vocab, tokenizer, batch_size, single_pass=False, mode='train', shuffle=True):
         self.dataset = dataset
         self._vocab = vocab
-        self.tokenizer = BasicTokenizer()
+        self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.single_pass = single_pass
         self.mode = mode
@@ -157,9 +157,10 @@ class HuggingFaceBatcher():
         while True:
             idx = next(index_generator)
             article, summary = self.dataset[idx]
-            article_text = " ".join(self.tokenizer.tokenize(article))
-            abstract_text = ' '.join(["%s %s %s" % (SENTENCE_STA, sent, SENTENCE_END) for sent in
-                      summary.split("\n")])
+            article_text = " ".join(self.tokenizer.encode(article).tokens)
+            abstract_text = " ".join(
+                ["%s %s %s" % (SENTENCE_STA, " ".join(self.tokenizer.encode(sent).tokens), SENTENCE_END)
+                 for sent in summary.split("\n")])
             if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
                 # tf.logging.warning('Found an example with empty article text. Skipping it.')
                 continue
