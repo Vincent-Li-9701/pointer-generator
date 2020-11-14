@@ -170,6 +170,7 @@ class BeamSearch(object):
         batch = self.batcher.next_batch()
         while batch is not None:
             # Run beam search to get best Hypothesis
+            print(batch)
             best_summary = self.beam_search(batch)
 
             # Extract the output ids from the hypothesis and convert back to words

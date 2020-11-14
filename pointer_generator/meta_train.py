@@ -115,8 +115,6 @@ class Train(object):
         dec_batch, dec_lens, dec_pos, dec_padding_mask, max_dec_len, tgt_batch = \
             get_output_from_batch(batch, use_cuda)
 
-        self.meta_optimizer.zero_grad()
-
         def split_data(data):
             if data is None:
                 return None, None
