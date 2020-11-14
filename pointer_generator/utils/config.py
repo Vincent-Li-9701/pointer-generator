@@ -17,7 +17,8 @@ EOS_TOKEN = '[EOS]'
 
 beam_size=4
 emb_dim= 128
-batch_size= 4
+#batch_size= 16
+batch_size= 8
 hidden_dim= 256
 max_enc_steps=400
 max_dec_steps=100
@@ -38,13 +39,13 @@ trunc_norm_init_std=1e-4
 eps = 1e-12
 use_gpu=True
 lr_coverage=0.15
-max_iterations = 500000
+max_iterations = 250000
 
 # transformer
 d_k = 64
 d_v = 64
 n_head = 6
-tran = True
+tran = True # if tran is true, the encoder is using transformer instead of lstm
 dropout = 0.1
 n_layers = 6
 d_model = 128
@@ -57,7 +58,8 @@ log_root = os.path.join(root_dir, "dataset/log/")
 train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
 decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
-vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
+# vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
+#vocab_path = os.path.join(root_dir, "/media/garage/data/pg/dataset/vocab/cnn_dailymail_large.txt")
 
 #train_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/train_*")
 #eval_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/val_*")
@@ -71,10 +73,13 @@ vocab_cache_dir = "../vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
 meta_train_K = 8  # number of examples per task (dataset)
-meta_test_datasets = "all"
+meta_test_datasets = "cnn_dailymail"
 meta_test_K = beam_size
 meta_val_datasets = "all"
 meta_val_K = 8
-meta_vocab_file = "vocab_5ds_5w.txt"  # assume that this is in @vocab_cache_dir
+use_wordpiece_vocab = True
+meta_vocab_file = "wp_5ds_5w-vocab.txt"  # assume that this is in @vocab_cache_dir
+meta_tokenizer_file = "wp_5ds_5w"
 meta_vocab_size = 50000
-num_inner_loops = 2
+num_inner_loops = 1
+#tmp_dir = "/media/garage/tmp"

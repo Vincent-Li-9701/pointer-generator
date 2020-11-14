@@ -7,6 +7,7 @@ import sys
 import time
 import torch
 import argparse
+import tensorflow as tf
 from torch.autograd import Variable
 
 from models.model import Model
@@ -14,11 +15,146 @@ from utils import utils
 from utils.dataset import Batcher
 from utils.dataset import Vocab
 from utils import dataset, config
-from utils.utils import get_input_from_batch
+from pointer_generator.utils.utils import get_input_from_batch
+from pointer_generator.utils.utils import get_output_from_batch
+from pointer_generator.utils.utils import calc_running_avg_loss
+import torch.optim as optim
 from utils.utils import write_for_rouge, rouge_eval, rouge_log
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
+
+
+class Train(object):
+    def __init__(self, dataset):
+        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
+
+        self.batcher = MetaBatcher(num_samples_per_task=config.meta_test_K,
+                                   datasets=[dataset],
+                                   vocab=self.vocab,
+                                   split="train")
+        """
+        # seems batch splits are different...
+        # and for weird reasons give you terrible results if you train cnn with metabatcher
+        # could metabatcher be wrong??? (please don't!
+        self.batcher = Batcher(self.vocab, config.train_data_path,
+                               config.batch_size, single_pass=False, mode='train')
+        """
+        time.sleep(10)
+        train_dir = os.path.join(config.tmp_dir, 'test_%d' % (int(time.time())))
+        if not os.path.exists(train_dir):
+            os.mkdir(train_dir)
+        self.model_dir = os.path.join(train_dir, 'models')
+        if not os.path.exists(self.model_dir):
+            os.mkdir(self.model_dir)
+        self.summary_writer = tf.summary.create_file_writer(train_dir)
+
+    def save_model(self, running_avg_loss, iter):
+        state = {
+            'iter': iter,
+            'model_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'current_loss': running_avg_loss
+        }
+        model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
+        torch.save(state, model_save_path)
+
+    def setup_train(self, model_path=None):
+        self.model = Model(model_path, is_tran=config.tran)
+        initial_lr = config.lr_coverage if config.is_coverage else config.lr
+
+        params = list(self.model.parameters())
+        total_params = sum([param[0].nelement() for param in params])
+        print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
+
+        self.optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr,
+                                             initial_accumulator_value=config.adagrad_init_acc)
+
+        start_iter, start_loss = 0, 0
+
+        if model_path is not None:
+            state = torch.load(model_path, map_location=lambda storage, location: storage)
+            if not config.is_coverage:
+                if 'model_dict' in state.keys():
+                    self.optimizer.load_state_dict(state['inner_optimizer'])
+                else:
+                    pass
+                    # self.meta_optimizer.load_state_dict(state['optimizer'])
+                if use_cuda:
+                    for state in self.optimizer.state.values():
+                        for k, v in state.items():
+                            if torch.is_tensor(v):
+                                state[k] = v.cuda()
+
+        return start_iter, start_loss
+
+    def train_one_batch(self, batch):
+        enc_batch, enc_lens, enc_pos, enc_padding_mask, enc_batch_extend_vocab, \
+        extra_zeros, c_t, coverage = get_input_from_batch(batch, use_cuda)
+        dec_batch, dec_lens, dec_pos, dec_padding_mask, max_dec_len, tgt_batch = \
+            get_output_from_batch(batch, use_cuda)
+
+        self.optimizer.zero_grad()
+
+        if not config.tran:
+            enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_lens)
+        else:
+            enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_pos)
+
+        s_t = self.model.reduce_state(enc_h)
+
+        step_losses, cove_losses = [], []
+        for di in range(min(max_dec_len, config.max_dec_steps)):
+            y_t = dec_batch[:, di]  # Teacher forcing
+            final_dist, s_t, c_t, attn_dist, p_gen, next_coverage = \
+                self.model.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask, c_t,
+                                   extra_zeros, enc_batch_extend_vocab, coverage, di)
+            tgt = tgt_batch[:, di]
+            step_mask = dec_padding_mask[:, di]
+            gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
+            step_loss = -torch.log(gold_probs + config.eps)
+            if config.is_coverage:
+                step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
+                cove_losses.append(step_coverage_loss * step_mask)
+                coverage = next_coverage
+
+            step_loss = step_loss * step_mask
+            step_losses.append(step_loss)
+
+        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+        batch_avg_loss = sum_losses / dec_lens
+        loss = torch.mean(batch_avg_loss)
+
+        loss.backward()
+        self.optimizer.step()
+
+        if config.is_coverage:
+            cove_losses = torch.sum(torch.stack(cove_losses, 1), 1)
+            batch_cove_loss = cove_losses / dec_lens
+            batch_cove_loss = torch.mean(batch_cove_loss)
+            return loss.item(), batch_cove_loss.item()
+
+        return loss.item(), 0.
+
+    def run(self, n_iters, model_path=None):
+        iter, running_avg_loss = self.setup_train(model_path)
+        start = time.time()
+        interval = max(100, n_iters//10)
+
+        while iter < n_iters:
+            batch = self.batcher.next_batch()
+            loss, cove_loss = self.train_one_batch(batch)
+            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
+            iter += 1
+
+            if iter % interval == 0:
+                self.summary_writer.flush()
+                print(
+                    'step: %d, second: %.2f , loss: %f, cover_loss: %f' % (iter, time.time() - start, loss, cove_loss))
+                start = time.time()
+
+        self.save_model(running_avg_loss, iter)
 
 class Beam(object):
     def __init__(self, tokens, log_probs, state, context, coverage):
@@ -43,10 +179,9 @@ class Beam(object):
     def avg_log_prob(self):
         return sum(self.log_probs) / len(self.tokens)
 
+class Test(object):
+    def __init__(self, model_file_path, model, vocab, dataset):
 
-class BeamSearch(object):
-    def __init__(self, model_file_path, dataset):
-        
         model_name = os.path.basename(model_file_path)
         self._test_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
         self._rouge_ref_dir = os.path.join(self._test_dir, 'rouge_ref')
@@ -55,24 +190,18 @@ class BeamSearch(object):
             if not os.path.exists(p):
                 os.mkdir(p)
 
-        self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
-
-        # TODO
-        #self.batcher = Batcher(self.vocab, config.decode_data_path, mode='decode',
-        #                       batch_size=config.beam_size, single_pass=True)
+        self.vocab = vocab
         self.batcher = MetaBatcher(num_samples_per_task=config.meta_test_K,
                                    datasets=[dataset],
                                    vocab=self.vocab,
                                    split="test",
                                    mode="decode")
-
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True, is_tran=config.tran)
+        self.model = model
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
-    
 
     def beam_search(self, batch):
         # single example repeated across the batch
@@ -82,7 +211,7 @@ class BeamSearch(object):
         enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_pos)
         s_t = self.model.reduce_state(enc_h)
 
-        dec_h, dec_c = s_t     # b x hidden_dim
+        dec_h, dec_c = s_t  # b x hidden_dim
         dec_h = dec_h.squeeze()
         dec_c = dec_c.squeeze()
 
@@ -105,7 +234,7 @@ class BeamSearch(object):
                 y_t = y_t.cuda()
             all_state_h = [h.state[0] for h in beams]
             all_state_c = [h.state[1] for h in beams]
-            all_context = [h.context  for h in beams]
+            all_context = [h.context for h in beams]
 
             s_t = (torch.stack(all_state_h, 0).unsqueeze(0), torch.stack(all_state_c, 0).unsqueeze(0))
             c_t = torch.stack(all_context, 0)
@@ -162,20 +291,27 @@ class BeamSearch(object):
         beams_sorted = self.sort_beams(results)
 
         return beams_sorted[0]
-    
+
     def run(self, num_to_eval, print_result):
-        
+
         counter = 0
         start = time.time()
         batch = self.batcher.next_batch()
+        interval = max(100, num_to_eval // 10)
         while batch is not None:
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
 
             # Extract the output ids from the hypothesis and convert back to words
             output_ids = [int(t) for t in best_summary.tokens[1:]]
+            """
+            print(output_ids)
+            input()
+            print(batch.art_oovs[0])
+            input()
+            """
             decoded_words = utils.outputids2words(output_ids, self.vocab,
-                                                    (batch.art_oovs[0] if config.pointer_gen else None))
+                                                  (batch.art_oovs[0] if config.pointer_gen else None))
 
             # Remove the [STOP] token from decoded_words, if necessary
             try:
@@ -194,7 +330,7 @@ class BeamSearch(object):
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
             counter += 1
-            if counter % 1000 == 0:
+            if counter % interval == 0:
                 print('%d example in %d sec' % (counter, time.time() - start))
                 start = time.time()
 
@@ -206,6 +342,7 @@ class BeamSearch(object):
         print("Now starting ROUGE eval...")
         results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         rouge_log(results_dict, self._test_dir)
+
 
 
 if __name__ == '__main__':
@@ -230,7 +367,20 @@ if __name__ == '__main__':
                         required=False,
                         default=config.meta_test_datasets,
                         help="test dataset (folder) name")
+    parser.add_argument("-i",
+                        dest="max_iterations",
+                        required=False,
+                        default=1,
+                        help="number of iterations to pretrain")
     args = parser.parse_args()
 
-    test_processor = BeamSearch(args.model_path, args.dataset)
+    # load model
+    train_processor = Train(args.dataset)
+    # train
+    train_processor.run(int(args.max_iterations), args.model_path)
+    # clean up train
+    # todo: is this necessary?
+    # test
+    test_processor = Test(args.model_path, train_processor.model, train_processor.vocab, args.dataset)
     test_processor.run(int(args.num_to_eval), bool(args.print))
+

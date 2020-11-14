@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import csv
 import glob
 import time
@@ -10,6 +11,7 @@ import tensorflow as tf
 from random import shuffle
 from threading import Thread
 from tensorflow.core.example import example_pb2
+from tokenizers.models import WordPiece
 
 import pointer_generator.utils.utils as utils
 import pointer_generator.utils.config as config
@@ -84,6 +86,43 @@ class Vocab(object):
             for i in range(self.size()):
                 writer.writerow({"word": self.idx2word[i]})
 
+
+class WordPieceVocab(object):
+    def __init__(self, file):
+        self.word2idx = WordPiece.read_file(file)
+        for w in [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]:
+            assert w in self.word2idx, "special tokens should be in the vocab"
+        self.idx2word = {}
+        for word, idx in self.word2idx.items():
+            self.idx2word[idx] = word
+        self.count = len(self.word2idx)
+        print(self.count)
+
+        print("Finished loading vocabulary of %i total words. Last word added: %s" % (
+          self.count, self.idx2word[self.count - 1]))
+
+    def word2id(self, word):
+        if word not in self.word2idx:
+            return self.word2idx[UNK_TOKEN]
+        return self.word2idx[word]
+
+    def id2word(self, word_id):
+        if word_id not in self.idx2word:
+            raise ValueError('Id not found in vocab: %d' % word_id)
+        return self.idx2word[word_id]
+
+    def size(self):
+        return self.count
+
+    def write_metadata(self, path):
+        print( "Writing word embedding metadata file to %s..." % (path))
+        with open(path, "w") as f:
+            fieldnames = ['word']
+            writer = csv.DictWriter(f, delimiter="\t", fieldnames=fieldnames)
+            for i in range(self.size()):
+                writer.writerow({"word": self.idx2word[i]})
+
+
 class Example(object):
 
     def __init__(self, article, abstract_sentences, vocab):
@@ -104,7 +143,11 @@ class Example(object):
         abstract_words = abstract.split()  # list of strings
         abs_ids = [vocab.word2id(w) for w in
                    abstract_words]         # list of word ids; OOVs are represented by the id for UNK token
-
+        """
+        print(abstract)
+        print(abstract_words)
+        print(abs_ids)
+        """
         # Get the decoder input sequence and target sequence
         self.dec_inp, self.tgt = self.get_dec_seq(abs_ids, config.max_dec_steps, bos_decoding, eos_decoding)
         self.dec_len = len(self.dec_inp)
@@ -168,9 +211,16 @@ class ExampleHF(object):
 
         # Process the abstract
         abstract = ' '.join(abstract_sentences)
+
         abstract_words = abstract.split()  # list of strings
+
         abs_ids = [vocab.word2id(w) for w in
                    abstract_words]  # list of word ids; OOVs are represented by the id for UNK token
+        """
+        print(abstract)
+        print(abstract_words)
+        print(abs_ids)
+        """
 
         # Get the decoder input sequence and target sequence
         self.dec_inp, self.tgt = self.get_dec_seq(abs_ids, config.max_dec_steps,
