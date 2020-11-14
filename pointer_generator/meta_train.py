@@ -78,9 +78,9 @@ class Train(object):
         total_params = sum([param[0].nelement() for param in params])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
 
-        self.meta_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr,
+        self.meta_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
                                             initial_accumulator_value=config.adagrad_init_acc)
-        self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr,
+        self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
                                              initial_accumulator_value=config.adagrad_init_acc)
 
         start_iter, start_loss = 0, 0
@@ -156,8 +156,8 @@ class Train(object):
 
                 sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
                 batch_avg_loss = sum_losses / dec_lens[:-1]
-                loss = torch.mean(batch_avg_loss)
-                diffopt.step(loss)
+                meta_train_loss = torch.mean(batch_avg_loss)
+                diffopt.step(meta_train_loss)
 
             ## meta test
             enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[-1:], enc_pos[-1:])
@@ -184,10 +184,10 @@ class Train(object):
 
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens[-1:]
-            meta_loss = torch.mean(batch_avg_loss)
+            meta_test_loss = torch.mean(batch_avg_loss)
 
         self.meta_optimizer.zero_grad()
-        meta_loss.backward()
+        meta_test_loss.backward()
         self.meta_optimizer.step()
 
         if config.is_coverage:
@@ -196,7 +196,7 @@ class Train(object):
             batch_cove_loss = torch.mean(batch_cove_loss)
             return loss.item(), batch_cove_loss.item()
 
-        return loss.item(), 0.
+        return meta_train_loss.item(), meta_test_loss.item()
 
     def run(self, n_iters, model_path=None):
         iter, running_avg_loss = self.setup_train(model_path)
@@ -213,7 +213,7 @@ class Train(object):
             if iter % interval == 0:
                 self.summary_writer.flush()
                 print(
-                    'step: %d, second: %.2f , loss: %f, cover_loss: %f' % (iter, time.time() - start, loss, cove_loss))
+                    'step: %d, second: %.2f , meta train loss: %f, meta test loss: %f' % (iter, time.time() - start, loss, cove_loss))
                 start = time.time()
             if iter % 5000 == 0:
                 self.save_model(running_avg_loss, iter)
