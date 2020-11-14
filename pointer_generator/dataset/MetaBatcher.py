@@ -10,6 +10,8 @@ class MetaBatcher(object):
     def __init__(self, num_samples_per_task, vocab, tokenizer=None, datasets="all", split="train", **batcher_args):
         if datasets == "all":
             datasets = list(name_to_HFDS.keys())
+        if isinstance(datasets, str):
+            datasets = [datasets]
         self.ds_names = datasets
 
         assert vocab is not None, "No vocab file provided"
