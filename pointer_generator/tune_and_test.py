@@ -75,7 +75,7 @@ class Train(object):
         total_params = sum([param[0].nelement() for param in params])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
 
-        self.optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr,
+        self.optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
                                              initial_accumulator_value=config.adagrad_init_acc)
 
         start_iter, start_loss = 0, 0
@@ -221,8 +221,6 @@ class Test(object):
         # single example repeated across the batch
         enc_batch, enc_lens, enc_pos, enc_padding_mask, enc_batch_extend_vocab, extra_zeros, c_t, coverage = \
             get_input_from_batch(batch, use_cuda)
-        
-        print(enc_batch.shape)
 
         enc_out, enc_fea, enc_h = self.model.encoder(enc_batch, enc_pos)
         s_t = self.model.reduce_state(enc_h)
