@@ -61,7 +61,7 @@ log_root = os.path.join(root_dir, "dataset/log/")
 train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
 decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*")
-vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
+# vocab_path = os.path.join(root_dir, "dataset/finished_files/vocab")
 vocab_path = os.path.join(root_dir, "/media/garage/data/pg/dataset/vocab/cnn_dailymail_large.txt")
 
 #train_data_path = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/dailymail_final/finished_files/chunked/train_*")
