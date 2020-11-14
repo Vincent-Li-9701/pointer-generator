@@ -161,7 +161,7 @@ class HuggingFaceBatcher():
             abstract_text = " ".join(
                 ["%s %s %s" % (SENTENCE_STA, " ".join(self.tokenizer.encode(sent).tokens), SENTENCE_END)
                  for sent in summary.split("\n")])
-            if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
+            if len(article_text) == 0 or len(summary) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
                 # tf.logging.warning('Found an example with empty article text. Skipping it.')
                 continue
             else:
