@@ -9,17 +9,18 @@ import torch
 import argparse
 import tensorflow as tf
 from torch.autograd import Variable
+from torch.nn.utils import clip_grad_norm_
 
-from models.model import Model
-from utils import utils
-from utils.dataset import Batcher
-from utils.dataset import Vocab
-from utils import dataset, config
+from pointer_generator.models.model import Model
+from pointer_generator.utils import utils
+from pointer_generator.utils.dataset import Batcher
+from pointer_generator.utils.dataset import Vocab
+from pointer_generator.utils import dataset, config
 from pointer_generator.utils.utils import get_input_from_batch
 from pointer_generator.utils.utils import get_output_from_batch
 from pointer_generator.utils.utils import calc_running_avg_loss
 import torch.optim as optim
-from utils.utils import write_for_rouge, rouge_eval, rouge_log
+from pointer_generator.utils.utils import write_for_rouge, rouge_eval, rouge_log
 from pointer_generator.dataset.MetaBatcher import MetaBatcher
 from pointer_generator.utils.dataset import Vocab, WordPieceVocab
 from tokenizers import Tokenizer

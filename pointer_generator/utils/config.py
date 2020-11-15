@@ -52,7 +52,8 @@ d_inner = 512
 n_warmup_steps = 4000
 
 root_dir = "/home/songlin/pointer-generator/pointer_generator"
-log_root = os.path.join(root_dir, "dataset/log/")
+# log_root = os.path.join(root_dir, "dataset/log/")
+log_root = os.path.join(root_dir, "/scr-ssd/yanjunc/course/cs330/log")
 
 train_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/val_*")
@@ -67,8 +68,10 @@ decode_data_path = os.path.join(root_dir, "dataset/finished_files/chunked/test_*
 
 
 ########################## New configs to fill ##############################
-dataset_cache_dir = "../datasets"
-vocab_cache_dir = "../vocab"
+# dataset_cache_dir = "../datasets"
+# vocab_cache_dir = "../vocab"
+dataset_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/datasets"
+vocab_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
 meta_train_K = 4#8  # number of examples per task (dataset)
