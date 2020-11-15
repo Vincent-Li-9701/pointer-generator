@@ -26,7 +26,6 @@ from tokenizers import Tokenizer
 tf.config.set_visible_devices([], 'GPU')
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
-
 class Train(object):
     def __init__(self):
         # self.vocab = Vocab(config.vocab_path, config.vocab_size)
@@ -78,10 +77,14 @@ class Train(object):
         total_params = sum([param[0].nelement() for param in params])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
 
-        self.meta_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
-                                            initial_accumulator_value=config.adagrad_init_acc)
-        self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
-                                             initial_accumulator_value=config.adagrad_init_acc)
+        # self.meta_optimizer = optim.Adagrad(self.model.parameters(), lr=0.35, weight_decay=0.1,
+        #                                     initial_accumulator_value=config.adagrad_init_acc)
+        # self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=0.45, weight_decay=0.1,
+        #                                      initial_accumulator_value=config.adagrad_init_acc)
+
+        self.meta_optimizer = optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.1)
+        self.inner_optimizer = optim.Adam(self.model.parameters(), lr=0.0005, weight_decay=0.1)
+        
 
         start_iter, start_loss = 0, 0
 
@@ -93,7 +96,8 @@ class Train(object):
             if not config.is_coverage:
                 if 'model_dict' in state.keys():
                     self.meta_optimizer.load_state_dict(state['optimizer'])
-                    self.inner_optimizer.load_state_dict(state['inner_optimizer'])
+                    if 'inner_optimizer' in state.keys():
+                        self.inner_optimizer.load_state_dict(state['inner_optimizer'])
                 else:
                     pass
                     # self.meta_optimizer.load_state_dict(state['optimizer'])
@@ -126,8 +130,9 @@ class Train(object):
         mtr_coverage, mte_coverage = split_data(coverage)
         mtr_c_t, mte_c_t = split_data(c_t)
 
+        self.meta_optimizer.zero_grad()
         with higher.innerloop_ctx(self.model, self.inner_optimizer, copy_initial_weights=False) as (fnet, diffopt):
-            for _ in range(config.num_inner_loops):
+            for i in range(config.num_inner_loops):
                 # the method will always be used for trianing
                 enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[:-1], enc_pos[:-1])
                 s_t = fnet.reduce_state(enc_h)
@@ -158,7 +163,8 @@ class Train(object):
                 batch_avg_loss = sum_losses / dec_lens[:-1]
                 meta_train_loss = torch.mean(batch_avg_loss)
                 diffopt.step(meta_train_loss)
-
+                # print("iteration: {} meta_train_loss: {}".format(i, meta_train_loss))
+            
             ## meta test
             enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[-1:], enc_pos[-1:])
             s_t = fnet.reduce_state(enc_h)
@@ -168,7 +174,7 @@ class Train(object):
                 y_t = dec_batch[-1:, di]  # Teacher forcing
                 final_dist, s_t, c_t, attn_dist, p_gen, next_coverage = \
                     fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[-1:], c_t,
-                                 mte_extra_zeros, mte_enc_batch_extend_vocab, mte_coverage, di)
+                                mte_extra_zeros, mte_enc_batch_extend_vocab, mte_coverage, di)
                 tgt = tgt_batch[-1:, di]
                 step_mask = dec_padding_mask[-1:, di]
                 gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
@@ -186,8 +192,19 @@ class Train(object):
             batch_avg_loss = sum_losses / dec_lens[-1:]
             meta_test_loss = torch.mean(batch_avg_loss)
 
-        self.meta_optimizer.zero_grad()
-        meta_test_loss.backward()
+            # print("iteration: {} meta_train_loss: {}".format(i, meta_test_loss))
+            meta_test_loss.backward()
+        
+        # for i, (name, param) in enumerate(self.model.named_parameters()):
+            
+        #     avg_grad = 0.0
+        #     if param.grad is not None:
+        #         avg_grad += torch.mean(param.grad)
+        #         if avg_grad > 1:
+        #             print(name)
+        
+        # print(avg_grad / (i+1))
+
         self.meta_optimizer.step()
 
         if config.is_coverage:
