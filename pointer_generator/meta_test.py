@@ -208,7 +208,6 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            break
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting ROUGE eval...")

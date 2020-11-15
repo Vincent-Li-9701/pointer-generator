@@ -17,7 +17,6 @@ EOS_TOKEN = '[EOS]'
 
 beam_size=4
 emb_dim= 128
-#batch_size= 16
 batch_size= 8
 hidden_dim= 256
 max_enc_steps=400
@@ -72,7 +71,7 @@ dataset_cache_dir = "../datasets"
 vocab_cache_dir = "../vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
-meta_train_K = 8  # number of examples per task (dataset)
+meta_train_K = 4#8  # number of examples per task (dataset)
 meta_test_datasets = "cnn_dailymail"
 meta_test_K = beam_size
 meta_val_datasets = "all"
@@ -81,5 +80,5 @@ use_wordpiece_vocab = True
 meta_vocab_file = "wp_5ds_5w-vocab.txt"  # assume that this is in @vocab_cache_dir
 meta_tokenizer_file = "wp_5ds_5w"
 meta_vocab_size = 50000
-num_inner_loops = 1
-#tmp_dir = "/media/garage/tmp"
+num_inner_loops = 10
+tmp_dir = "../tmp"
