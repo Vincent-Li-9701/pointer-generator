@@ -85,4 +85,4 @@ meta_vocab_file = "wp_5ds_5w-vocab.txt"  # assume that this is in @vocab_cache_d
 meta_tokenizer_file = "wp_5ds_5w"
 meta_vocab_size = 50000
 num_inner_loops = 1
-#tmp_dir = "/media/garage/tmp"
+tmp_dir = "/scr-ssd/yanjunc/course/cs330/tmp/"
