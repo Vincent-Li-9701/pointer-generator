@@ -40,7 +40,7 @@ class Train(object):
         else:
             self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
         tokenizer = Tokenizer.from_file(os.path.join(config.vocab_cache_dir, config.meta_tokenizer_file))
-        self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_K,
+        self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_batch_size * (config.num_train_batches + config.num_test_batches),
                                    datasets=config.meta_train_datasets,
                                    vocab=self.vocab,
                                    tokenizer=tokenizer,
@@ -82,18 +82,20 @@ class Train(object):
         # self.inner_optimizer = optim.Adagrad(self.model.parameters(), lr=0.45, weight_decay=0.1,
         #                                      initial_accumulator_value=config.adagrad_init_acc)
 
-        self.meta_optimizer = optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.1)
-        self.inner_optimizer = optim.Adam(self.model.parameters(), lr=0.0005, weight_decay=0.1)
-        
+        self.params = list(self.model.parameters())
+        self.meta_optimizer = optim.Adam(self.params, lr=1e-4, weight_decay=1e-5)
+        self.inner_optimizer = optim.Adam(self.params, lr=1e-4, weight_decay=0)
 
         start_iter, start_loss = 0, 0
 
         if model_path is not None:
             state = torch.load(model_path, map_location=lambda storage, location: storage)
-            start_iter = state['iter']
-            start_loss = state['current_loss']
+            #start_iter = state['iter']
+            #start_loss = state['current_loss']
 
             if not config.is_coverage:
+
+                """
                 if 'model_dict' in state.keys():
                     self.meta_optimizer.load_state_dict(state['optimizer'])
                     if 'inner_optimizer' in state.keys():
@@ -110,7 +112,7 @@ class Train(object):
                         for k, v in state.items():
                             if torch.is_tensor(v):
                                 state[k] = v.cuda()
-
+                """
         return start_iter, start_loss
 
     def meta_train_one_batch(self, batch):
@@ -121,33 +123,43 @@ class Train(object):
 
         def split_data(data):
             if data is None:
-                return None, None
+                return [None] * (config.num_train_batches + config.num_test_batches)
             else:
-                return data[:-1], data[-1:]
+                #print(data.shape, type(data))
+                d = torch.split(data, split_size_or_sections = 2)# (config.num_train_batches + config.num_test_batches))
+                #print(d[0].shape)
+                return d
 
-        mtr_extra_zeros, mte_extra_zeros = split_data(extra_zeros)
-        mtr_enc_batch_extend_vocab, mte_enc_batch_extend_vocab = split_data(enc_batch_extend_vocab)
-        mtr_coverage, mte_coverage = split_data(coverage)
-        mtr_c_t, mte_c_t = split_data(c_t)
+        enc_batch = split_data(enc_batch)
+        enc_pos = split_data(enc_pos)
+        enc_padding_mask = split_data(enc_padding_mask)
+        enc_batch_extend_vocab= split_data(enc_batch_extend_vocab)
+        extra_zeros = split_data(extra_zeros)
+        coverage = split_data(coverage)
+        c_t = split_data(c_t)
+        dec_batch = split_data(dec_batch)
+        dec_lens = split_data(dec_lens)
+        dec_pos = split_data(dec_pos)
+        dec_padding_mask = split_data(dec_padding_mask)
+        tgt_batch = split_data(tgt_batch)
 
-        self.meta_optimizer.zero_grad()
-        with higher.innerloop_ctx(self.model, self.inner_optimizer, copy_initial_weights=False) as (fnet, diffopt):
-            for i in range(config.num_inner_loops):
-                # the method will always be used for trianing
-                enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[:-1], enc_pos[:-1])
-                s_t = fnet.reduce_state(enc_h)
+        data_pointer = config.num_train_batches
+        # test before meta rain
+        with torch.no_grad():
+            meta_test_loss = 0
+            for i in range(config.num_test_batches):
+                enc_out, enc_fea, enc_h = self.model.encoder(enc_batch[data_pointer], enc_pos[data_pointer])
+                s_t = self.model.reduce_state(enc_h)
                 step_losses, cove_losses = [], []
-                c_t = mtr_c_t
                 for di in range(min(max_dec_len, config.max_dec_steps)):
-                    y_t = dec_batch[:-1, di]  # Teacher forcing
-
-                    # TODO: extra_zeros and enc_batch_extend_vocab can be None if pg is enabled. need to handle that
-                    # coverage is zero when converage is enabled
-                    final_dist, s_t, c_t, attn_dist, p_gen, next_coverage = \
-                        fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[:-1], c_t,
-                                     mtr_extra_zeros, mtr_enc_batch_extend_vocab, mtr_coverage, di)
-                    tgt = tgt_batch[:-1, di]
-                    step_mask = dec_padding_mask[:-1, di]
+                    y_t = dec_batch[data_pointer][:, di]  # Teacher forcing
+                    c = c_t[data_pointer]
+                    final_dist, s_t, c, attn_dist, p_gen, next_coverage = \
+                        self.model.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[data_pointer], c,
+                                     extra_zeros[data_pointer], enc_batch_extend_vocab[data_pointer],
+                                     coverage[data_pointer], di)
+                    tgt = tgt_batch[data_pointer][:, di]
+                    step_mask = dec_padding_mask[data_pointer][:, di]
                     gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
                     step_loss = -torch.log(gold_probs + config.eps)
                     if config.is_coverage:
@@ -160,80 +172,136 @@ class Train(object):
                     step_losses.append(step_loss)
 
                 sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-                batch_avg_loss = sum_losses / dec_lens[:-1]
+                batch_avg_loss = sum_losses / dec_lens[data_pointer]
+                l = torch.mean(batch_avg_loss)
+                meta_test_loss += l
+                data_pointer += 1
+
+        prev_loss = meta_test_loss / config.num_test_batches
+
+        data_pointer = 0
+        inner_loss = []
+        with higher.innerloop_ctx(self.model, self.inner_optimizer,
+                                  copy_initial_weights=False) as (fnet, diffopt):
+
+            for i in range(config.num_train_batches):
+                # the method will always be used for trianing
+                enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[data_pointer], enc_pos[data_pointer])
+                s_t = fnet.reduce_state(enc_h)
+                step_losses, cove_losses = [], []
+                for di in range(min(max_dec_len, config.max_dec_steps)):
+                    y_t = dec_batch[data_pointer][:, di]  # Teacher forcing
+
+                    c = c_t[data_pointer]
+                    # TODO: extra_zeros and enc_batch_extend_vocab can be None if pg is enabled. need to handle that
+                    # coverage is zero when converage is enabled
+                    final_dist, s_t, c, attn_dist, p_gen, next_coverage = \
+                        fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[data_pointer], c,
+                                     extra_zeros[data_pointer], enc_batch_extend_vocab[data_pointer], coverage[data_pointer], di)
+
+                    tgt = tgt_batch[data_pointer][:, di]
+                    step_mask = dec_padding_mask[data_pointer][:, di]
+                    gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
+                    step_loss = -torch.log(gold_probs + config.eps)
+                    if config.is_coverage:
+                        step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                        step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
+                        cove_losses.append(step_coverage_loss * step_mask)
+                        coverage = next_coverage
+
+                    step_loss = step_loss * step_mask
+                    step_losses.append(step_loss)
+
+                sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+                batch_avg_loss = sum_losses / dec_lens[data_pointer]
                 meta_train_loss = torch.mean(batch_avg_loss)
                 diffopt.step(meta_train_loss)
-                # print("iteration: {} meta_train_loss: {}".format(i, meta_train_loss))
-            
+                inner_loss.append(meta_train_loss.item())
+                #print("iteration: {} meta_train_loss: {}".format(i, meta_train_loss))
+                data_pointer += 1
+            inner_loss.append(0)
+
             ## meta test
-            enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[-1:], enc_pos[-1:])
-            s_t = fnet.reduce_state(enc_h)
-            c_t = mte_c_t
-            step_losses, cove_losses = [], []
-            for di in range(min(max_dec_len, config.max_dec_steps)):
-                y_t = dec_batch[-1:, di]  # Teacher forcing
-                final_dist, s_t, c_t, attn_dist, p_gen, next_coverage = \
-                    fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[-1:], c_t,
-                                mte_extra_zeros, mte_enc_batch_extend_vocab, mte_coverage, di)
-                tgt = tgt_batch[-1:, di]
-                step_mask = dec_padding_mask[-1:, di]
-                gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
-                step_loss = -torch.log(gold_probs + config.eps)
-                if config.is_coverage:
-                    step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
-                    step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
-                    cove_losses.append(step_coverage_loss * step_mask)
-                    coverage = next_coverage
+            meta_test_loss = 0
+            for i in range(config.num_test_batches):
+                enc_out, enc_fea, enc_h = fnet.encoder(enc_batch[data_pointer], enc_pos[data_pointer])
+                s_t = fnet.reduce_state(enc_h)
+                step_losses, cove_losses = [], []
+                for di in range(min(max_dec_len, config.max_dec_steps)):
+                    y_t = dec_batch[data_pointer][:, di]  # Teacher forcing
+                    c = c_t[data_pointer]
+                    final_dist, s_t, c, attn_dist, p_gen, next_coverage = \
+                        fnet.decoder(y_t, s_t, enc_out, enc_fea, enc_padding_mask[data_pointer], c,
+                                    extra_zeros[data_pointer], enc_batch_extend_vocab[data_pointer], coverage[data_pointer], di)
+                    tgt = tgt_batch[data_pointer][:, di]
+                    step_mask = dec_padding_mask[data_pointer][:, di]
+                    gold_probs = torch.gather(final_dist, 1, tgt.unsqueeze(1)).squeeze()
+                    step_loss = -torch.log(gold_probs + config.eps)
+                    if config.is_coverage:
+                        step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                        step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
+                        cove_losses.append(step_coverage_loss * step_mask)
+                        coverage = next_coverage
 
-                step_loss = step_loss * step_mask
-                step_losses.append(step_loss)
+                    step_loss = step_loss * step_mask
+                    step_losses.append(step_loss)
 
-            sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-            batch_avg_loss = sum_losses / dec_lens[-1:]
-            meta_test_loss = torch.mean(batch_avg_loss)
+                sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+                batch_avg_loss = sum_losses / dec_lens[data_pointer]
+                l = torch.mean(batch_avg_loss)
+                meta_test_loss += l
 
-            # print("iteration: {} meta_train_loss: {}".format(i, meta_test_loss))
-            meta_test_loss.backward()
-        
-        # for i, (name, param) in enumerate(self.model.named_parameters()):
-            
-        #     avg_grad = 0.0
-        #     if param.grad is not None:
-        #         avg_grad += torch.mean(param.grad)
-        #         if avg_grad > 1:
-        #             print(name)
-        
-        # print(avg_grad / (i+1))
+                #print("iteration: {} meta_test_loss: {}".format(i, l))
+                inner_loss.append(l.item())
+                data_pointer += 1
 
+        self.meta_optimizer.zero_grad()
+        meta_test_loss = meta_test_loss/config.num_test_batches
+        meta_test_loss.backward()
         self.meta_optimizer.step()
 
+        """
         if config.is_coverage:
             cove_losses = torch.sum(torch.stack(cove_losses, 1), 1)
             batch_cove_loss = cove_losses / dec_lens
             batch_cove_loss = torch.mean(batch_cove_loss)
-            return loss.item(), batch_cove_loss.item()
+            return meta_test_loss.item(), batch_cove_loss.item()
+        """
 
-        return meta_train_loss.item(), meta_test_loss.item()
+        return prev_loss.item(), meta_train_loss.item(), meta_test_loss.item(), inner_loss
 
     def run(self, n_iters, model_path=None):
         iter, running_avg_loss = self.setup_train(model_path)
         start = time.time()
-        interval = 100
+        interval = 50
+
+        prev_loss = 0
+        train_loss = 0
+        test_loss = 0
 
         self.save_model(running_avg_loss, iter)
         while iter < n_iters:
             batch = self.batcher.next_batch()
-            loss, cove_loss = self.meta_train_one_batch(batch)
-            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
-            iter += 1
+            pl, trainl, testl, inner_loss = self.meta_train_one_batch(batch)
+            prev_loss += pl
+            train_loss += trainl
+            test_loss += testl
+            running_avg_loss = calc_running_avg_loss(test_loss, running_avg_loss, self.summary_writer, iter)
 
             if iter % interval == 0:
                 self.summary_writer.flush()
                 print(
-                    'step: %d, second: %.2f , meta train loss: %f, meta test loss: %f' % (iter, time.time() - start, loss, cove_loss))
+                    'step: %d, second: %.2f , meta train loss: %f, meta test prev loss: %f, post loss: %f, diff:%f' % \
+                    (iter, time.time() - start, train_loss/interval, prev_loss/interval, test_loss/interval, (prev_loss-test_loss)/interval))
+                prev_loss = 0
+                train_loss = 0
+                test_loss = 0
                 start = time.time()
-            if iter % 5000 == 0:
+                #print(inner_loss)
+            if iter % 500 == 0:
                 self.save_model(running_avg_loss, iter)
+
+            iter += 1
 
 
 if __name__ == '__main__':

@@ -37,7 +37,7 @@ class Train(object):
             self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
         tokenizer = Tokenizer.from_file(os.path.join(config.vocab_cache_dir, config.meta_tokenizer_file))
         self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_K,
-                                   datasets=config.meta_test_datasets,
+                                   datasets=dataset,
                                    vocab=self.vocab,
                                    tokenizer=tokenizer,
                                    split="train")
@@ -76,19 +76,27 @@ class Train(object):
         total_params = sum([param[0].nelement() for param in params])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
 
-        self.optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
-                                             initial_accumulator_value=config.adagrad_init_acc)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.0005, weight_decay=0.1)
 
         start_iter, start_loss = 0, 0
 
         if model_path is not None:
             state = torch.load(model_path, map_location=lambda storage, location: storage)
             if not config.is_coverage:
+                """
+                Note: Since we have been using many different optimizers, modify this code whatever way you want to load your pretrained one
+                """
+                self.optimizer.load_state_dict(state['inner_optimizer'])
+                """
                 if 'model_dict' in state.keys():
+                    print("loading optimizer state")
                     self.optimizer.load_state_dict(state['inner_optimizer'])
-                else:
-                    pass
+                elif 'optimizer' in state.keys():
+                    params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + list(self.model.reduce_state.parameters())
+                    self.optimizer = optim.Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+                    self.optimizer.load_state_dict(state['optimizer'])
                     # self.meta_optimizer.load_state_dict(state['optimizer'])
+                """
                 if use_cuda:
                     for state in self.optimizer.state.values():
                         for k, v in state.items():
