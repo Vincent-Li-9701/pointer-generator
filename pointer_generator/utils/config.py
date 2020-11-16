@@ -38,7 +38,7 @@ trunc_norm_init_std=1e-4
 eps = 1e-12
 use_gpu=True
 lr_coverage=0.15
-max_iterations = 250000
+max_iterations = 400000
 
 # transformer
 d_k = 64
@@ -78,7 +78,7 @@ vocab_cache_dir = "/scr-ssd/yanjunc/course/cs330/huggingface/vocab"
 
 meta_train_datasets = "all"  # subset of HuggingFaceDataset.name_to_HFDS.keys()
 meta_train_K = 4  # number of examples per task (dataset)
-meta_train_batch_size = 8 ################################################################
+meta_train_batch_size = 4  ################### TO TUNE ########################
 meta_test_datasets = "cnn_dailymail"
 meta_test_K = beam_size
 meta_val_datasets = "all"
@@ -88,8 +88,8 @@ meta_vocab_file = "wp_5ds_5w-vocab.txt"  # assume that this is in @vocab_cache_d
 meta_tokenizer_file = "wp_5ds_5w"
 meta_vocab_size = 50000
 num_inner_loops = 3
-num_train_batches = 3 ################################################################
-num_test_batches = 2 ################################################################
+num_train_batches = 3  ################### TO TUNE ########################
+num_test_batches = 2  ################### TO TUNE ########################
 tmp_dir = "/media/garage/tmp"
 #tmp_dir = "../tmp"
 #tmp_dir = "/scr-ssd/yanjunc/course/cs330/tmp/"

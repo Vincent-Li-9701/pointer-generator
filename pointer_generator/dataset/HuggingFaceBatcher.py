@@ -11,7 +11,7 @@ import time
 
 
 class HuggingFaceBatcher():
-    BATCH_QUEUE_MAX = 50  # max number of batches the batch_queue can hold
+    BATCH_QUEUE_MAX = 60  # max number of batches the batch_queue can hold
 
     def __init__(self, dataset, vocab, tokenizer, batch_size, single_pass=False, mode='train', shuffle=True):
         self.dataset = dataset
