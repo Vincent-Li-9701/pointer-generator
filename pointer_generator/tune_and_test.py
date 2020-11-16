@@ -37,7 +37,7 @@ class Train(object):
             self.vocab = Vocab(os.path.join(config.vocab_cache_dir, config.meta_vocab_file), max_size=config.meta_vocab_size)
         tokenizer = Tokenizer.from_file(os.path.join(config.vocab_cache_dir, config.meta_tokenizer_file))
         self.batcher = MetaBatcher(num_samples_per_task=config.meta_train_K,
-                                   datasets=config.meta_test_datasets,
+                                   datasets=[dataset],
                                    vocab=self.vocab,
                                    tokenizer=tokenizer,
                                    split="train")
@@ -76,8 +76,7 @@ class Train(object):
         total_params = sum([param[0].nelement() for param in params])
         print('The Number of params of model: %.3f million' % (total_params / 1e6))  # million
 
-        self.optimizer = optim.Adagrad(self.model.parameters(), lr=initial_lr, weight_decay=0.1,
-                                             initial_accumulator_value=config.adagrad_init_acc)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=2e-5, weight_decay=0.1)
 
         start_iter, start_loss = 0, 0
 

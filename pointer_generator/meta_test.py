@@ -51,9 +51,8 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path, num_to_eval=1):
+    def __init__(self, model_file_path):
 
-        self.num_to_eval = num_to_eval
         model_name = os.path.basename(model_file_path)
         self._test_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
         self._rouge_ref_dir = os.path.join(self._test_dir, 'rouge_ref')
@@ -178,13 +177,13 @@ class BeamSearch(object):
 
         return beams_sorted[0]
 
-    def run(self):
+    def run(self, num_to_eval, print_result):
 
         counter = 0
         start = time.time()
         batch = self.batcher.next_batch()
         cnt = 0
-        while cnt < self.num_to_eval:
+        while cnt < num_to_eval:
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
 
@@ -202,6 +201,11 @@ class BeamSearch(object):
                 decoded_words = decoded_words
 
             original_abstract_sents = batch.original_abstracts_sents[0]
+
+            if print_result:
+                print("pred:", " ".join(decoded_words))
+                print("gt:", " ".join(original_abstract_sents))
+                print("=====")
 
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
@@ -231,7 +235,12 @@ if __name__ == '__main__':
                         required=False,
                         default=100,
                         help="Evaluate the first n examples")
+    parser.add_argument("-p",
+                        dest="print",
+                        required=False,
+                        default=False,
+                        help="whether to print")
     args = parser.parse_args()
 
-    test_processor = BeamSearch(args.model_path, args.num_to_eval)
-    test_processor.run()
+    test_processor = BeamSearch(args.model_path)
+    test_processor.run(int(args.num_to_eval), bool(args.print))

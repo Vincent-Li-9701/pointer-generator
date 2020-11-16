@@ -96,7 +96,7 @@ class WordPieceVocab(object):
         for word, idx in self.word2idx.items():
             self.idx2word[idx] = word
         self.count = len(self.word2idx)
-        print(self.count)
+        # print(self.count)
 
         print("Finished loading vocabulary of %i total words. Last word added: %s" % (
           self.count, self.idx2word[self.count - 1]))
