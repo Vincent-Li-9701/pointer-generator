@@ -126,7 +126,7 @@ class Train(object):
                 return [None] * (config.num_train_batches + config.num_test_batches)
             else:
                 #print(data.shape, type(data))
-                d = torch.split(data, split_size_or_sections = 2)# (config.num_train_batches + config.num_test_batches))
+                d = torch.split(data, split_size_or_sections=config.meta_train_batch_size)
                 #print(d[0].shape)
                 return d
 
